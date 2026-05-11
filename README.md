@@ -35,9 +35,97 @@ STEP-5: Display the obtained cipher text.
 
 
 Program:
+```
+SIZE = 5
 
+def generate_key_matrix(key):
+    key = key.upper().replace('J', 'I')
+    seen = set()
+    filtered = []
+    for ch in key:
+        if ch.isalpha() and ch not in seen:
+            seen.add(ch)
+            filtered.append(ch)
+    
+    for ch in 'ABCDEFGHIKLMNOPQRSTUVWXYZ':
+        if ch not in seen:
+            seen.add(ch)
+            filtered.append(ch)
+    
+    matrix = [filtered[i*SIZE:(i+1)*SIZE] for i in range(SIZE)]
+    return matrix
+
+def find_position(matrix, ch):
+    if ch == 'J':
+        ch = 'I'
+    for i in range(SIZE):
+        for j in range(SIZE):
+            if matrix[i][j] == ch:
+                return i, j
+
+def process_digraph(a, b, matrix, encrypt):
+    r1, c1 = find_position(matrix, a)
+    r2, c2 = find_position(matrix, b)
+    step = 1 if encrypt else SIZE - 1
+
+    if r1 == r2:
+        return matrix[r1][(c1 + step) % SIZE], matrix[r2][(c2 + step) % SIZE]
+    elif c1 == c2:
+        return matrix[(r1 + step) % SIZE][c1], matrix[(r2 + step) % SIZE][c2]
+    else:
+        return matrix[r1][c2], matrix[r2][c1]
+
+def preprocess_text(text):
+    text = text.upper().replace('J', 'I')
+    return ''.join(ch for ch in text if ch.isalpha())
+
+def encrypt_decrypt(text, matrix, encrypt):
+    text = preprocess_text(text)
+    result = []
+    i = 0
+    while i < len(text):
+        a = text[i]
+        if i + 1 < len(text):
+            b = text[i + 1]
+        else:
+            b = 'X'
+
+        if a == b:
+            b = 'X'
+            i += 1
+        else:
+            i += 2
+
+        res_a, res_b = process_digraph(a, b, matrix, encrypt)
+        result.extend([res_a, res_b])
+
+    return ''.join(result)
+
+def print_matrix(matrix):
+    print("KEY MATRIX:")
+    for row in matrix:
+        print(' '.join(row))
+
+def main():
+    key = input("ENTER THE KEY: ")
+    text = input("ENTER TEXT TO ENCRYPT: ")
+
+    matrix = generate_key_matrix(key)
+    print_matrix(matrix)
+
+    encrypted = encrypt_decrypt(text, matrix, encrypt=True)
+    print(f"ENCRYPTED TEXT: {encrypted}")
+
+    decrypted = encrypt_decrypt(encrypted, matrix, encrypt=False)
+    print(f"DECRYPTED TEXT: {decrypted}")
+
+if __name__ == "__main__":
+    main()
+```
 
 
 
 
 Output:
+
+<img width="428" height="1015" alt="Screenshot 2026-05-11 092211" src="https://github.com/user-attachments/assets/7a433083-320e-48ce-bb10-f1f1e41e471c" />
