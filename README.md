@@ -36,91 +36,143 @@ STEP-5: Display the obtained cipher text.
 
 Program:
 ```
-SIZE = 5
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 
-def generate_key_matrix(key):
-    key = key.upper().replace('J', 'I')
-    seen = set()
-    filtered = []
-    for ch in key:
-        if ch.isalpha() and ch not in seen:
-            seen.add(ch)
-            filtered.append(ch)
-    
-    for ch in 'ABCDEFGHIKLMNOPQRSTUVWXYZ':
-        if ch not in seen:
-            seen.add(ch)
-            filtered.append(ch)
-    
-    matrix = [filtered[i*SIZE:(i+1)*SIZE] for i in range(SIZE)]
-    return matrix
+#define SIZE 5
 
-def find_position(matrix, ch):
-    if ch == 'J':
-        ch = 'I'
-    for i in range(SIZE):
-        for j in range(SIZE):
-            if matrix[i][j] == ch:
-                return i, j
+void generateKeyMatrix(char key[], char matrix[SIZE][SIZE]) {
+   int alpha[26] = {0};
+   int i, j, k = 0;
+   char current;
 
-def process_digraph(a, b, matrix, encrypt):
-    r1, c1 = find_position(matrix, a)
-    r2, c2 = find_position(matrix, b)
-    step = 1 if encrypt else SIZE - 1
+   for (i = 0; key[i] != '\0'; i++) {
+       current = toupper(key[i]);
+       if (current == 'J') current = 'I';
+       if (current < 'A' || current > 'Z' || alpha[current - 'A'])
+           continue;
+       alpha[current - 'A'] = 1;
+       key[k++] = current;
+   }
+   key[k] = '\0';
 
-    if r1 == r2:
-        return matrix[r1][(c1 + step) % SIZE], matrix[r2][(c2 + step) % SIZE]
-    elif c1 == c2:
-        return matrix[(r1 + step) % SIZE][c1], matrix[(r2 + step) % SIZE][c2]
-    else:
-        return matrix[r1][c2], matrix[r2][c1]
+   i = 0; k = 0;
+   for (int row = 0; row < SIZE; row++) {
+       for (int col = 0; col < SIZE; col++) {
+           if (i < strlen(key)) {
+               matrix[row][col] = key[i++];
+           } else {
+               for (char ch = 'A'; ch <= 'Z'; ch++) {
+                   if (ch == 'J' || alpha[ch - 'A'])
+                       continue;
+                   matrix[row][col] = ch;
+                   alpha[ch - 'A'] = 1;
+                   break;
+               }
+           }
+       }
+   }
+}
 
-def preprocess_text(text):
-    text = text.upper().replace('J', 'I')
-    return ''.join(ch for ch in text if ch.isalpha())
+void findPosition(char matrix[SIZE][SIZE], char ch, int *row, int *col) {
+   if (ch == 'J') ch = 'I';  
+   for (int i = 0; i < SIZE; i++) {
+       for (int j = 0; j < SIZE; j++) {
+           if (matrix[i][j] == ch) {
+               *row = i;
+               *col = j;
+               return;
+           }
+       }
+   }
+}
 
-def encrypt_decrypt(text, matrix, encrypt):
-    text = preprocess_text(text)
-    result = []
-    i = 0
-    while i < len(text):
-        a = text[i]
-        if i + 1 < len(text):
-            b = text[i + 1]
-        else:
-            b = 'X'
+void processDigraph(char a, char b, char matrix[SIZE][SIZE], char *resA, char *resB, int encrypt) {
+   int row1, col1, row2, col2;
+   findPosition(matrix, a, &row1, &col1);
+   findPosition(matrix, b, &row2, &col2);
 
-        if a == b:
-            b = 'X'
-            i += 1
-        else:
-            i += 2
+   if (row1 == row2) {  
+       *resA = matrix[row1][(col1 + (encrypt ? 1 : SIZE - 1)) % SIZE];
+       *resB = matrix[row2][(col2 + (encrypt ? 1 : SIZE - 1)) % SIZE];
+   } else if (col1 == col2) {  
+       *resA = matrix[(row1 + (encrypt ? 1 : SIZE - 1)) % SIZE][col1];
+       *resB = matrix[(row2 + (encrypt ? 1 : SIZE - 1)) % SIZE][col2];
+   } else {  // Rectangle swap
+       *resA = matrix[row1][col2];
+       *resB = matrix[row2][col1];
+   }
+}
 
-        res_a, res_b = process_digraph(a, b, matrix, encrypt)
-        result.extend([res_a, res_b])
+void preprocessText(char *text) {
+   char temp[100] = {0};
+   int k = 0;
 
-    return ''.join(result)
+   for (int i = 0; text[i]; i++) {
+       if (isalpha(text[i])) {
+           temp[k++] = toupper(text[i] == 'J' ? 'I' : text[i]);
+       }
+   }
+   temp[k] = '\0';
+   strcpy(text, temp);
+}
 
-def print_matrix(matrix):
-    print("KEY MATRIX:")
-    for row in matrix:
-        print(' '.join(row))
+void encryptDecryptText(char *text, char matrix[SIZE][SIZE], int encrypt) {
+   preprocessText(text);
+   char result[100] = {0};
+   int len = strlen(text), k = 0;
 
-def main():
-    key = input("ENTER THE KEY: ")
-    text = input("ENTER TEXT TO ENCRYPT: ")
+   for (int i = 0; i < len; i += 2) {
+       char a = text[i];
+       char b = (i + 1 < len) ? text[i + 1] : 'X';
 
-    matrix = generate_key_matrix(key)
-    print_matrix(matrix)
+       if (a == b) {
+           b = 'X';  
+           i--;      
+       }
 
-    encrypted = encrypt_decrypt(text, matrix, encrypt=True)
-    print(f"ENCRYPTED TEXT: {encrypted}")
+       char resA, resB;
+       processDigraph(a, b, matrix, &resA, &resB, encrypt);
+       result[k++] = resA;
+       result[k++] = resB;
+     }
+    result[k] = '\0';
+    strcpy(text, result);
+    }
 
-    decrypted = encrypt_decrypt(encrypted, matrix, encrypt=False)
-    print(f"DECRYPTED TEXT: {decrypted}")
+    void printMatrix(char matrix[SIZE][SIZE]) {
+    printf("KEY MATRIX:\n");
+    for (int i = 0; i < SIZE; i++) {
+       for (int j = 0; j < SIZE; j++) {
+           printf("%c ", matrix[i][j]);
+       }
+       printf("\n");
+    }
+    }
 
-if __name__ == "__main__":
-    main()
+    int main() {
+    char key[100], text[100], matrix[SIZE][SIZE];
+   
+    printf("ENTER THE KEY: ");
+    fgets(key, sizeof(key), stdin);
+    key[strcspn(key, "\n")] = '\0';
+
+    printf("ENTER TEXT TO ENCRYPT: ");
+    fgets(text, sizeof(text), stdin);
+    text[strcspn(text, "\n")] = '\0';
+
+    generateKeyMatrix(key, matrix);
+    printMatrix(matrix);
+
+    encryptDecryptText(text, matrix, 1);  
+    printf("ENCRYPTED TEXT: %s\n", text);
+
+    encryptDecryptText(text, matrix, 0);  
+    printf("DECRYPTED TEXT: %s\n", text);
+
+     return 0;
+    }
 ```
 
 
@@ -128,4 +180,4 @@ if __name__ == "__main__":
 
 Output:
 
-<img width="428" height="1015" alt="Screenshot 2026-05-11 092211" src="https://github.com/user-attachments/assets/7a433083-320e-48ce-bb10-f1f1e41e471c" />
+<img width="1698" height="958" alt="Screenshot 2026-05-11 at 09-29-15 Online C Compiler - Programiz" src="https://github.com/user-attachments/assets/b1523bab-ca6c-4270-8f6d-02ac0f82081a" />
